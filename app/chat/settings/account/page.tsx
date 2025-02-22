@@ -104,6 +104,7 @@ const AccountPage = () => {
             options={[
               { value: 'zh', label: '简体中文' },
               { value: 'en', label: 'English' },
+              { value: 'it', label: 'Italian' },
             ]}
           />
         </div>
