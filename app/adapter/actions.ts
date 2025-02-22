@@ -6,9 +6,9 @@ import { llmModelType, llmModelTypeWithAllInfo } from '@/app/db/schema';
 import { auth } from '@/auth';
 
 type FormValues = {
-  status: boolean;
-  apikey: string;
-  providerName: string;
+  isActive?: boolean;
+  apikey?: string;
+  providerName?: string;
   endpoint?: string;
   order?: number;
 }
@@ -25,24 +25,15 @@ export const saveToServer = async (providerId: string, values: FormValues) => {
 
   if (existingRecord.length > 0) {
     await db.update(llmSettingsTable)
-      .set({
-        providerName: values.providerName,
-        apikey: values.apikey,
-        endpoint: values.endpoint,
-        isActive: values.status,
-        order: values.order,
-      })
+      .set(values)
       .where(eq(llmSettingsTable.provider, providerId))
   } else {
     // 如果用户不存在，插入新记录
     await db.insert(llmSettingsTable)
       .values({
         provider: providerId,
-        providerName: values.providerName,
-        apikey: values.apikey,
-        endpoint: values.endpoint,
-        isActive: values.status,
-        order: values.order,
+        providerName: values.providerName || 'Untitled',
+        ...values
       })
   }
 };
@@ -120,6 +111,10 @@ export const changeSelectInServer = async (modelName: string, selected: boolean)
 }
 
 export const deleteCustomModelInServer = async (modelName: string) => {
+  const session = await auth();
+  if (!session?.user.isAdmin) {
+    throw new Error('not allowed');
+  }
   await db.delete(llmModels).where(eq(llmModels.name, modelName));
 }
 
@@ -189,6 +184,46 @@ export const updateCustomModelInServer = async (oldModelName: string, modelInfo:
         eq(llmModels.name, oldModelName)
       )
     );
+  return {
+    status: 'success',
+  }
+}
+
+export const addCustomProviderInServer = async (providerInfo: {
+  provider: string,
+  providerName: string,
+  endpoint: string,
+  api_style: string,
+  apikey: string,
+}) => {
+  const session = await auth();
+  if (!session?.user.isAdmin) {
+    throw new Error('not allowed');
+  }
+  const hasExist = await db
+    .select()
+    .from(llmSettingsTable)
+    .where(
+      eq(llmSettingsTable.provider, providerInfo.provider),
+    );
+  if (hasExist.length > 0) {
+    return {
+      status: 'fail',
+      message: '已存在相同名称的模型'
+    }
+  }
+  await db.insert(llmSettingsTable).values({ ...providerInfo, type: 'custom', isActive: true });
+  return {
+    status: 'success',
+  }
+}
+
+export const deleteCustomProviderInServer = async (providerId: string) => {
+  const session = await auth();
+  if (!session?.user.isAdmin) {
+    throw new Error('not allowed');
+  }
+  await db.delete(llmSettingsTable).where(eq(llmSettingsTable.provider, providerId));
   return {
     status: 'success',
   }

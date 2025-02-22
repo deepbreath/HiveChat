@@ -7,7 +7,8 @@ import {
   primaryKey,
   integer,
   varchar,
-  json
+  json,
+  unique
 } from "drizzle-orm/pg-core";
 import type { AdapterAccountType } from "next-auth/adapters";
 import { customAlphabet } from 'nanoid';
@@ -94,14 +95,15 @@ export const authenticators = pgTable("authenticator", {
 )
 
 export const APIStyle = pgEnum('api_style', ['openai', 'claude', 'gemini']);
+export const providerType = pgEnum('provider_type', ['default', 'custom']);
 export const llmSettingsTable = pgTable("llm_settings", {
-  // id: integer().primaryKey().generatedByDefaultAsIdentity(),
   provider: varchar({ length: 255 }).primaryKey().notNull(),
   providerName: varchar({ length: 255 }).notNull(),
   apikey: varchar({ length: 255 }),
   endpoint: varchar({ length: 1024 }),
   isActive: boolean('is_active').default(false),
   apiStyle: APIStyle('api_style').default('openai'),
+  type: providerType('type').notNull().default('default'),
   logo: varchar({ length: 2048 }),
   order: integer('order'),
   createdAt: timestamp('created_at').defaultNow(),
@@ -129,7 +131,15 @@ export const llmModels = pgTable("models", {
   type: modelType('type').notNull().default('default'),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
-});
+},
+  (table) => ({
+    // 创建联合唯一约束
+    uniqueNameProvider: unique('unique_model_provider').on(
+      table.name,
+      table.providerId
+    ),
+  })
+);
 
 export const avatarType = pgEnum('avatar_type', ['emoji', 'url', 'none']);
 export const historyType = pgEnum('history_type', ['all', 'count', 'none']);

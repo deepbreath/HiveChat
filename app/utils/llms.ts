@@ -12,13 +12,15 @@ export async function getLlmOriginConfigByProvider(providerId: string) {
       return {
         endpoint: result.endpoint,
         isActive: result.isActive,
-        apikey: result.apikey
+        apikey: result.apikey,
+        type: result.type,
       };
     } else {
       return {
         endpoint: '',
         isActive: false,
-        apikey: null
+        apikey: null,
+        type: 'default',
       };
     }
 
@@ -64,6 +66,10 @@ export async function completeEndpoint(providerId: string, inputUrl?: string | n
     'qwen': 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions',
     'qianfan': 'https://qianfan.baidubce.com/v2/chat/completions',
     'siliconflow': 'https://api.siliconflow.cn/v1/chat/completions',
+    'zhipu': 'https://open.bigmodel.cn/api/paas/v4/chat/completions',
+    'hunyuan': 'https://api.hunyuan.cloud.tencent.com/v1/chat/completions',
+    'openrouter': 'https://openrouter.ai/api/v1/chat/completions',
+    'grok': 'https://api.x.ai/v1/chat/completions',
   }
   if (!inputUrl || inputUrl === 'null') {
     return endpointMap[providerId as keyof typeof endpointMap];
@@ -79,7 +85,7 @@ export async function completeEndpoint(providerId: string, inputUrl?: string | n
     }
     return apiUrl;
   }
-  if (inputUrl.endsWith('/v1/chat/completions')) {
+  if (inputUrl.endsWith('completions')) {
     apiUrl = inputUrl;
   } else if (inputUrl.endsWith('/')) {
     apiUrl = inputUrl + 'v1/chat/completions';

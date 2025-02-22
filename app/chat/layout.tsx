@@ -9,7 +9,7 @@ export default function ChatLayout({
 }: {
   children: React.ReactNode
 }) {
-  const { initModelList, setCurrentModel, initAllProviderList } = useModelListStore();
+  const { initModelList, setCurrentModel, setIsPending, initAllProviderList } = useModelListStore();
 
   useEffect(() => {
     const initializeModelList = async () => {
@@ -17,7 +17,6 @@ export default function ChatLayout({
         const remoteModelList = await fetchAvailableLlmModels();
         const modelNames = remoteModelList.map(model => model.name);
         await initModelList(remoteModelList);
-        // -----
         const allProviderSettings = await fetchAllProviders();
         const processedList = allProviderSettings.map(item => ({
           id: item.provider,
@@ -26,7 +25,6 @@ export default function ChatLayout({
           status: item.isActive || false,
         }));
         initAllProviderList(processedList)
-        // -----
         const lastSelectedModel = localStorage.getItem('lastSelectedModel');
         if (lastSelectedModel && modelNames.includes(lastSelectedModel)) {
           setCurrentModel(lastSelectedModel);
@@ -36,13 +34,14 @@ export default function ChatLayout({
             setCurrentModel(remoteModelList[0].name);
           }
         }
+        setIsPending(false);
       } catch (error) {
         console.error('Error initializing model list:', error);
       }
     };
 
     initializeModelList();
-  }, [initModelList, setCurrentModel, initAllProviderList]);
+  }, [initModelList, setCurrentModel, setIsPending, initAllProviderList]);
   return (
     <div className="flex flex-col h-dvh">
       <App>{children}</App>

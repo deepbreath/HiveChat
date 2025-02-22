@@ -4,10 +4,9 @@ import Markdown from 'react-markdown';
 import rehypeHighlight from 'rehype-highlight';
 import remarkGfm from 'remark-gfm';
 import React, { useState, useEffect } from 'react';
-import { Button, Form, Input, Switch, Skeleton } from 'antd';
-import { CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
+import { Button, Form, Input, Switch, Skeleton, Avatar, message, Popconfirm, Modal } from 'antd';
+import { CheckCircleOutlined, CloseCircleOutlined, EditOutlined } from '@ant-design/icons';
 import { getLLMInstance } from '@/app/adapter/models';
-import Image from "next/image";
 import { useTranslations } from 'next-intl';
 import { saveToServer } from '@/app/adapter/actions';
 import { fetchLlmModels } from '@/app/adapter/actions';
@@ -15,20 +14,22 @@ import useModelListStore from '@/app/store/modelList';
 import CheckApiModal from '@/app/adapter/common/CheckApiModal';
 import EditModelModal from '@/app/adapter/common/EditModelModal';
 import AddModelModal from '@/app/adapter/common/AddModelModal';
+import RenameProviderModal from '@/app/adapter/common/RenameProviderModal';
 import ModelList from '@/app/adapter/common/ModelList';
 import { LLMModel } from '@/app/adapter/interface';
 import { getLlmOriginConfigByProvider } from '@/app/utils/llms';
-
-
+import { deleteCustomProviderInServer } from '@/app/adapter/actions';
+import { useRouter } from "next/navigation";
 
 type FormValues = {
-  status: boolean;
+  isActive: boolean;
   apikey: string;
   endpoint: string;
 }
 
 const Settings = (props: { providerId: string }) => {
-  const { allProviderList, modelList, initModelList, toggleProvider } = useModelListStore();
+  const router = useRouter();
+  const { allProviderList, initModelList, toggleProvider, deleteCustomProvider } = useModelListStore();
   const provider = allProviderList.find((i) => i.id === props.providerId)!;
   const t = useTranslations('Admin.Models');
   const [isClient, setIsClient] = useState(false);
@@ -36,6 +37,7 @@ const Settings = (props: { providerId: string }) => {
 
   const [isCheckApiModalOpen, setIsCheckApiModalOpen] = useState(false);
   const [isCustomModelModalOpen, setIsCustomModelModalOpen] = useState(false);
+  const [isRenameProviderModalOpen, setIsRenameProviderModalOpen] = useState(false);
   const [isEditModelModalOpen, setIsEditModelModalOpen] = useState(false);
   const [curretEditModal, setCurretEditModal] = useState<LLMModel>();
   const [checkResult, setCheckResult] = useState('init');
@@ -56,6 +58,10 @@ const Settings = (props: { providerId: string }) => {
       'qianfan': 'https://k2swpw8zgf.feishu.cn/wiki/PUKvw62CgiZLoCkR9xjcWktinrc',
       'siliconflow': 'https://k2swpw8zgf.feishu.cn/wiki/EpD4wAj0ai681hkFFqMcvQZUn8g',
       'ollama': 'https://k2swpw8zgf.feishu.cn/wiki/MiPKw3uI7iS7ImkdAG7cRj77nuf',
+      'hunyuan': 'https://k2swpw8zgf.feishu.cn/wiki/MYt7wKmYniviwrkeULPc1yjEn0f',
+      'zhipu': 'https://k2swpw8zgf.feishu.cn/wiki/Ljyowt68vijCX0kPKhkc8fs8nS2',
+      'grok': 'https://k2swpw8zgf.feishu.cn/wiki/JWmBwLbCFiJ3YXko5ILc40xEnoy',
+      'openrouter': 'https://k2swpw8zgf.feishu.cn/wiki/LRjSwrcDVixWjzkII0icaoQQnBc',
     };
     const providers = Object.keys(helpLinks);
     if (providers.includes(providerId)) {
@@ -69,12 +75,23 @@ const Settings = (props: { providerId: string }) => {
     setIsClient(true);
   }, []);
 
+  const handleDeleteProvider = async (providerId: string) => {
+    try {
+      message.success('删除成功');
+      await deleteCustomProviderInServer(providerId);
+      deleteCustomProvider(providerId);
+      router.push(`/admin/llm`);
+    } catch (error) {
+      console.error('删除服务商失败:', error);
+      message.error('删除失败，请检查网络或后台服务。');
+    }
+  }
 
   useEffect(() => {
     const fetchLlmConfig = async (): Promise<void> => {
       const result = await getLlmOriginConfigByProvider(provider.id);
       form.setFieldsValue({
-        status: result.isActive || false,
+        isActive: result.isActive || false,
         apikey: result.apikey || '',
         endpoint: result.endpoint || '',
       });
@@ -100,7 +117,7 @@ const Settings = (props: { providerId: string }) => {
   if (!isClient) return null;
 
   const onFinish = (values: FormValues) => {
-    toggleProvider(provider.id, values.status);
+    toggleProvider(provider.id, values.isActive);
     saveToServer(provider.id, { ...values, providerName: provider.providerName });
   };
 
@@ -125,11 +142,35 @@ const Settings = (props: { providerId: string }) => {
           onFinish={onFinish}
         >
           <div className='flex flex-row justify-between my-4 items-center'>
-            <div className='flex items-center'>
-              <Image src={provider.providerLogo!} alt="" width={26} height={26} />
-              <h2 className='font-medium text-lg ml-2'>{provider.providerName}</h2>
+            <div className='flex items-center justify-center'>
+              {provider?.providerLogo ?
+                <Avatar
+                  style={{ border: '1px solid #ddd', padding: '0.2rem' }}
+                  src={provider.providerLogo}
+                />
+                :
+                <Avatar
+                  style={{ backgroundColor: '#1c78fa' }}
+                >{provider?.providerName.charAt(0)}</Avatar>
+              }
+              <div className='flex flex-col ml-2'>
+                <h2 className='font-medium text-lg mb-0 leading-5'>{provider?.providerName}
+                  {provider?.type === 'custom' &&
+                    <Button
+                      size='small'
+                      type='text'
+                      className='ml-2'
+                      onClick={() => {
+                        setIsRenameProviderModalOpen(true);
+                      }}>
+                      <EditOutlined style={{ fontSize: '12px', 'color': '#666' }} />
+                    </Button>
+                  }
+                </h2>
+                <span className='text-xs text-gray-400'>{provider?.id}</span>
+              </div>
             </div>
-            <Form.Item name='status' style={{ 'margin': '0' }}>
+            <Form.Item name='isActive' style={{ 'margin': '0' }}>
               <Switch onChange={() => {
                 form.submit();
               }} />
@@ -157,7 +198,7 @@ const Settings = (props: { providerId: string }) => {
             </Link>
           </div>
           {
-            props.providerId === 'ollama' ?
+            props.providerId === 'ollama' || provider.type === 'custom' ?
               <Form.Item label={<span className='font-medium'>{t('serviceEndpoint')}</span>} name='endpoint'>
                 <Input
                   type='url'
@@ -182,7 +223,6 @@ const Settings = (props: { providerId: string }) => {
         <div className='flex flex-col mb-2'>
           <div className='font-medium'>{t('testConnect')}</div>
           <div className='my-2 flex flex-row items-center'>
-            {/* <Button loading={checkResult === 'pending'} onClick={checkApi}>{t('check')}</Button> */}
             <Button loading={checkResult === 'pending'} onClick={() => {
               setIsCheckApiModalOpen(true);
             }}>{t('check')}</Button>
@@ -223,7 +263,29 @@ const Settings = (props: { providerId: string }) => {
           setIsEditModelModalOpen={setIsEditModelModalOpen}
           setIsCustomModelModalOpen={setIsCustomModelModalOpen}
         />
-
+        {provider?.type === 'custom' &&
+          <div className='w-full flex flex-row-reverse p-2'>
+            <Popconfirm
+              title="删除提示"
+              description="确定删除此服务商吗？"
+              onConfirm={() => {
+                handleDeleteProvider(props.providerId)
+              }}
+              okText={t('confirm')}
+              cancelText={t('cancel')}
+            >
+              <Button
+                size='small'
+                color="blue"
+                variant="text"
+              >
+                <span className='text-gray-400 text-xs'>
+                  删除此服务商
+                </span>
+              </Button>
+            </Popconfirm>
+          </div>
+        }
         <CheckApiModal
           isCheckApiModalOpen={isCheckApiModalOpen}
           setIsCheckApiModalOpenOpen={setIsCheckApiModalOpen}
@@ -233,15 +295,21 @@ const Settings = (props: { providerId: string }) => {
         <AddModelModal
           isCustomModelModalOpen={isCustomModelModalOpen}
           setIsCustomModelModalOpen={setIsCustomModelModalOpen}
-          providerId={provider.id}
-          providerName={provider.providerName}
+          providerId={provider?.id}
+          providerName={provider?.providerName}
         />
         <EditModelModal
           model={curretEditModal}
           isEditModelModalOpen={isEditModelModalOpen}
           setIsEditModelModalOpen={setIsEditModelModalOpen}
-          providerId={provider.id}
-          providerName={provider.providerName}
+          providerId={provider?.id}
+          providerName={provider?.providerName}
+        />
+        <RenameProviderModal
+          isModalOpen={isRenameProviderModalOpen}
+          setIsModalOpen={setIsRenameProviderModalOpen}
+          providerId={provider?.id}
+          providerName={provider?.providerName}
         />
       </div>
   );
