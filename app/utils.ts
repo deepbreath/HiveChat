@@ -25,7 +25,7 @@ export function generateTitle(messages: RequestMessage[],
   const llmApi = getLLMInstance(providerId);
   const toSendMessages: RequestMessage[] = [...messages, {
     role: "user",
-    content: "使用4到8个字直接返回这句话的简要主题，在 8 个字以内，不要解释、不要标点、不要语气词、不要多余文本，不要加粗，如果没有主题，请直接返回“闲聊”"
+    content: "使用 4 到 8 个字直接返回这句话的简要主题，在 8 个字以内，不要解释、不要标点、不要语气词、不要多余文本，不要加粗，如果没有主题，请直接返回 “ 闲聊 ”"
   }];
   const options: ChatOptions = {
     messages: toSendMessages,
