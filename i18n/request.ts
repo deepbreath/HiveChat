@@ -4,7 +4,7 @@ import { headers } from 'next/headers';
 export default getRequestConfig(async () => {
 
   const locales = ['en', 'zh','it'];
-  const defaultLocale = 'en';
+  const defaultLocale = 'it';
 
   const headersList = headers();
   // 获取 cookie 中的语言设置
