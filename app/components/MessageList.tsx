@@ -25,7 +25,6 @@ export const MessageList = (props: { chat_id: string }) => {
   const t = useTranslations('Chat');
   const [modal, contextHolder] = Modal.useModal();
   const messageListRef = useRef<HTMLDivElement>(null);
-  const { setNewTitle } = useChatListStore();
   const [historySettingOpen, SetHistorySettingOpen] = useState(false);
   const {
     input,
@@ -47,13 +46,14 @@ export const MessageList = (props: { chat_id: string }) => {
     retryMessage,
     stopChat,
     setIsUserScrolling,
+    shouldSetNewTitle,
   } = useChat(props.chat_id);
 
   const { uploadedImages, maxImages, handleImageUpload, removeImage, setUploadedImages } = useImageUpload();
 
   const isFromHome = useRouteState();
-
   const router = useRouter();
+  const shouldSetNewTitleRef = useRef(shouldSetNewTitle);
   useEffect(() => {
     const check = async () => {
       if (isFromHome) {
@@ -69,16 +69,13 @@ export const MessageList = (props: { chat_id: string }) => {
             content: question
           }];
           await sendMessage(messages);
-          let renameModel = localStorage.getItem('renameModel') || 'current';
-          if (renameModel === 'current') {
-            renameModel = currentModel.id
-          }
+          shouldSetNewTitleRef.current(messages);
           router.replace(`/chat/${props.chat_id}`);
         }
       }
     }
     check();
-  }, [isFromHome, props.chat_id, currentModel, setNewTitle, sendMessage, router]);
+  }, [isFromHome, props.chat_id, sendMessage, router]);
 
   const handleHistorySettingOpenChange = (open: boolean) => {
     SetHistorySettingOpen(open);
